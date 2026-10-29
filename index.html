@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub 資料夾內容上傳工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #logArea::-webkit-scrollbar { width: 8px; }
+        #logArea::-webkit-scrollbar-track { background: #1f2937; }
+        #logArea::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-8 py-6 border-b border-gray-200 bg-blue-600">
+            <h1 class="text-2xl font-bold text-white">📦 GitHub 資料夾內容上傳工具</h1>
+            <p class="text-blue-100 text-sm mt-1">將所選資料夾「內部」的所有檔案與結構，直接上傳至您的儲存庫中。</p>
+        </div>
+        
+        <div class="p-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- 設定區塊 -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">GitHub PAT (Token) <span class="text-red-500">*</span></label>
+                        <input type="password" id="token" placeholder="ghp_xxxxxxxxxxxx" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">儲存庫擁有者 (Owner) <span class="text-red-500">*</span></label>
+                        <input type="text" id="owner" placeholder="例如：your-username" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">儲存庫名稱 (Repo) <span class="text-red-500">*</span></label>
+                        <input type="text" id="repo" placeholder="例如：my-project" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">分支 (Branch)</label>
+                            <input type="text" id="branch" value="main" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">目標路徑 (選填)</label>
+                            <input type="text" id="targetPath" placeholder="例如：docs/" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                        </div>
+                    </div>
+                    
+                    <!-- 儲存與匯出入區塊 -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between mt-2 pt-2 border-t border-gray-100 gap-3">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="rememberMe" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
+                            <label for="rememberMe" class="ml-2 text-sm font-medium text-gray-700 cursor-pointer">記住設定 (LocalStorage)</label>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="exportBtn" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 px-3 rounded transition">⬇️ 匯出設定</button>
+                            <button id="importBtn" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 px-3 rounded transition">⬆️ 匯入設定</button>
+                            <!-- 隱藏的匯入用 Input -->
+                            <input type="file" id="importInput" accept=".json" class="hidden">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 檔案選擇與上傳區塊 -->
+                <div class="flex flex-col space-y-4">
+                    <div class="flex-grow border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition relative">
+                        <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <p class="text-sm text-gray-600 font-medium text-center">點擊選擇要上傳的資料夾</p>
+                        <p class="text-xs text-gray-500 text-center mt-1" id="fileCount">尚未選擇任何檔案</p>
+                        <input type="file" id="folderInput" webkitdirectory directory multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Commit 訊息</label>
+                        <input type="text" id="commitMessage" value="Upload folder contents via Web App" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    </div>
+
+                    <button id="uploadBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-200 flex justify-center items-center cursor-not-allowed opacity-70" disabled>
+                        <svg id="loadingIcon" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>開始上傳</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 日誌區塊 -->
+            <div class="mt-2">
+                <h3 class="text-sm font-bold text-gray-700 mb-2">執行日誌</h3>
+                <div id="logArea" class="bg-gray-900 text-green-400 font-mono text-xs sm:text-sm p-4 rounded-md h-64 overflow-y-auto whitespace-pre-wrap break-all shadow-inner">等待操作...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const logArea = $('logArea');
+        let selectedFiles = [];
+
+        // 日誌函數
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            let colorStr = 'text-green-400';
+            if (type === 'error') colorStr = 'text-red-400';
+            if (type === 'warn') colorStr = 'text-yellow-400';
+            
+            const line = document.createElement('div');
+            line.className = colorStr;
+            line.textContent = `[${time}] ${message}`;
+            logArea.appendChild(line);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // ================= LocalStorage 與匯出入功能 =================
+        const settingKeys = ['token', 'owner', 'repo', 'branch', 'targetPath', 'rememberMe'];
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('gh_uploader_rememberMe') === 'true') {
+                $('rememberMe').checked = true;
+                settingKeys.forEach(id => {
+                    if (id !== 'rememberMe' && localStorage.getItem(`gh_uploader_${id}`) !== null) {
+                        $(id).value = localStorage.getItem(`gh_uploader_${id}`);
+                    }
+                });
+            }
+        });
+
+        const triggerSave = () => {
+            settingKeys.forEach(id => {
+                if ($('rememberMe').checked) {
+                    const val = $(id).type === 'checkbox' ? $(id).checked : $(id).value;
+                    localStorage.setItem(`gh_uploader_${id}`, val);
+                } else {
+                    localStorage.removeItem(`gh_uploader_${id}`);
+                }
+            });
+        };
+        settingKeys.forEach(id => $(id).addEventListener('input', triggerSave));
+
+        // 匯出設定
+        $('exportBtn').addEventListener('click', () => {
+            const data = {
+                token: $('token').value,
+                owner: $('owner').value,
+                repo: $('repo').value,
+                branch: $('branch').value,
+                targetPath: $('targetPath').value
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'github-uploader-settings.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            log('已匯出設定檔 (github-uploader-settings.json)。');
+        });
+
+        // 匯入設定
+        $('importBtn').addEventListener('click', () => $('importInput').click());
+        $('importInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.token !== undefined) $('token').value = data.token;
+                    if (data.owner !== undefined) $('owner').value = data.owner;
+                    if (data.repo !== undefined) $('repo').value = data.repo;
+                    if (data.branch !== undefined) $('branch').value = data.branch;
+                    if (data.targetPath !== undefined) $('targetPath').value = data.targetPath;
+                    
+                    log('✅ 設定已成功匯入！');
+                    triggerSave();
+                } catch (err) {
+                    log('❌ 匯入失敗：檔案格式錯誤。', 'error');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+        // =========================================================
+
+        $('folderInput').addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            if (selectedFiles.length > 0) {
+                $('fileCount').textContent = `已選擇 ${selectedFiles.length} 個檔案`;
+                $('uploadBtn').disabled = false;
+                $('uploadBtn').classList.remove('cursor-not-allowed', 'opacity-70');
+                log(`已選擇 ${selectedFiles.length} 個檔案準備上傳。`);
+            } else {
+                $('fileCount').textContent = '尚未選擇任何檔案';
+                $('uploadBtn').disabled = true;
+                $('uploadBtn').classList.add('cursor-not-allowed', 'opacity-70');
+            }
+        });
+
+        const readFileAsBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        async function githubApi(url, method, token, body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            const response = await fetch(`https://api.github.com${url}`, options);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        $('uploadBtn').addEventListener('click', async () => {
+            const token = $('token').value.trim();
+            const owner = $('owner').value.trim();
+            const repo = $('repo').value.trim();
+            const branch = $('branch').value.trim() || 'main';
+            let targetPath = $('targetPath').value.trim();
+            const commitMessage = $('commitMessage').value.trim() || 'Upload folder contents via Web App';
+
+            if (!token || !owner || !repo) {
+                log('請填寫必填欄位 (Token, Owner, Repo)！', 'error');
+                return;
+            }
+
+            if (targetPath && !targetPath.endsWith('/')) targetPath += '/';
+            if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
+
+            $('uploadBtn').disabled = true;
+            $('loadingIcon').classList.remove('hidden');
+            $('uploadBtn').classList.add('opacity-80', 'cursor-not-allowed');
+            log('=== 開始上傳流程 ===');
+
+            try {
+                const basePath = `/repos/${owner}/${repo}/git`;
+                
+                log(`[1/5] 取得分支 '${branch}' 資訊...`);
+                const refData = await githubApi(`${basePath}/refs/heads/${branch}`, 'GET', token);
+                const latestCommitSha = refData.object.sha;
+                
+                const commitData = await githubApi(`${basePath}/commits/${latestCommitSha}`, 'GET', token);
+                const baseTreeSha = commitData.tree.sha;
+
+                log(`[2/5] 準備上傳 ${selectedFiles.length} 個檔案至 GitHub (建立 Blobs)...`);
+                const tree = [];
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    
+                    // 【關鍵修改】：切除最外層的資料夾名稱
+                    const pathParts = file.webkitRelativePath.split('/');
+                    pathParts.shift(); // 移除陣列中的第一個元素 (也就是外層資料夾的名字)
+                    const cleanRelativePath = pathParts.join('/'); // 把剩下的內部結構重新組合
+                    
+                    const filePath = targetPath + cleanRelativePath; 
+                    
+                    log(`進度 (${i+1}/${selectedFiles.length}): 處理 ${filePath}...`);
+                    const base64Content = await readFileAsBase64(file);
+                    
+                    const blobData = await githubApi(`${basePath}/blobs`, 'POST', token, {
+                        content: base64Content,
+                        encoding: 'base64'
+                    });
+
+                    tree.push({
+                        path: filePath,
+                        mode: '100644',
+                        type: 'blob',
+                        sha: blobData.sha
+                    });
+                }
+
+                log(`[3/5] 建立目錄樹 (Tree)...`);
+                const newTreeData = await githubApi(`${basePath}/trees`, 'POST', token, {
+                    base_tree: baseTreeSha,
+                    tree: tree
+                });
+
+                log(`[4/5] 建立 Commit...`);
+                const newCommitData = await githubApi(`${basePath}/commits`, 'POST', token, {
+                    message: commitMessage,
+                    tree: newTreeData.sha,
+                    parents: [latestCommitSha]
+                });
+
+                log(`[5/5] 更新分支 '${branch}' 指標...`);
+                await githubApi(`${basePath}/refs/heads/${branch}`, 'PATCH', token, {
+                    sha: newCommitData.sha,
+                    force: false
+                });
+
+                log(`🎉 成功！所有內容皆已上傳完畢。`, 'info');
+                alert('上傳成功！');
+                
+            } catch (error) {
+                log(`❌ 發生錯誤: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                $('uploadBtn').disabled = false;
+                $('loadingIcon').classList.add('hidden');
+                $('uploadBtn').classList.remove('opacity-80', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>
