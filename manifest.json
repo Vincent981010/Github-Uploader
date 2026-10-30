@@ -1,0 +1,15 @@
+{
+  "name": "GitHub 資料夾內容上傳工具",
+  "short_name": "GitHub Uploader",
+  "description": "將所選資料夾內部的所有檔案與結構，直接上傳至 GitHub 儲存庫。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "lang": "zh-TW",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
